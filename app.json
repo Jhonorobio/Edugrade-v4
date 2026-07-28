@@ -1,13 +1,15 @@
 {
   "expo": {
-    "name": "EduGradeV4",
-    "slug": "EduGradeV4",
+    "name": "EduGrade",
+    "slug": "edugrade",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "scheme": "edugrade",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.edugrade.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +18,27 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.edugrade.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c0033af1-a5c4-416e-a8d1-7da6a57d48c6"
+      }
+    },
+    "owner": "jhonorobio",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c0033af1-a5c4-416e-a8d1-7da6a57d48c6"
     }
   }
 }

@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import type { Usuario } from '../types'
 
 export async function loginWithUsername(username: string, password: string) {
-  const email = `${username}@edugrade.local`
+  const email = `${username}@edugrade.app`
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email,
     password,

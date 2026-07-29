@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { TextInput, Button, Text, Surface, HelperText } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import { useAuth } from '../../src/contexts/AuthContext'
 import { useTheme } from '../../src/contexts/ThemeContext'
 import { Colors, Spacing, FontSizes, BorderRadius } from '../../src/constants/theme'
@@ -11,8 +12,15 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const { login, loading } = useAuth()
+  const { usuario, login, loading } = useAuth()
   const { theme } = useTheme()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (usuario) {
+      router.replace('/(app)')
+    }
+  }, [usuario])
 
   async function handleLogin() {
     setError('')

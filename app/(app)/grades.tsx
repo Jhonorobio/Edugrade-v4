@@ -1,24 +1,22 @@
 import { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, Alert } from 'react-native'
-import { Text, Card, Button, FAB, Dialog, Portal, TextInput, Searchbar, Chip, SegmentedButtons } from 'react-native-paper'
+import { View, StyleSheet, ScrollView, Alert, Pressable } from 'react-native'
+import { Text, TextInput, Dialog, Portal, Surface } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
-import { useTheme } from '../../src/contexts/ThemeContext'
+import { Colors, Spacing, BorderRadius, Fonts, FontSizes, Shadows } from '../../src/constants/theme'
 import { useSchool } from '../../src/contexts/SchoolContext'
 import { getGrados, createGrado, updateGrado, deleteGrado, getMaterias, createMateria, updateMateria, deleteMateria } from '../../src/services/grades'
 import type { Grado, Materia, GradeLevel } from '../../src/types'
-import { Spacing, Colors, BorderRadius } from '../../src/constants/theme'
 
 const niveles: GradeLevel[] = ['Preescolar', 'Primaria', 'Bachillerato']
 
 export default function GradesScreen() {
-  const { theme } = useTheme()
   const { colegioActivo } = useSchool()
   const [grados, setGrados] = useState<Grado[]>([])
   const [materias, setMaterias] = useState<Materia[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('grados')
+  const [tab, setTab] = useState<'grados' | 'materias'>('grados')
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
@@ -71,7 +69,7 @@ export default function GradesScreen() {
   }
 
   async function handleDelete(id: string) {
-    Alert.alert('Confirmar', '¿Eliminar?', [
+    Alert.alert('Confirmar', '¿Eliminar este elemento?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
         try {
@@ -83,68 +81,90 @@ export default function GradesScreen() {
     ])
   }
 
+  const nivelColor = (nivel: string) => {
+    if (nivel === 'Preescolar') return Colors.accent
+    if (nivel === 'Primaria') return Colors.primary
+    return Colors.success
+  }
+
+  const items = tab === 'grados' ? grados : materias
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.onBackground }]}>
-          Grados y Materias
-        </Text>
+        <Text style={styles.screenTitle}>Grados y Materias</Text>
 
-        <SegmentedButtons
-          value={tab}
-          onValueChange={setTab}
-          buttons={[
-            { value: 'grados', label: 'Grados' },
-            { value: 'materias', label: 'Materias' },
-          ]}
-          style={styles.tabSelector}
-        />
+        <View style={styles.tabRow}>
+          <Pressable onPress={() => setTab('grados')} style={[styles.tabBtn, tab === 'grados' && styles.tabBtnActive]}>
+            <Ionicons name="layers" size={18} color={tab === 'grados' ? Colors.textLight : Colors.textSecondary} />
+            <Text style={[styles.tabText, tab === 'grados' && styles.tabTextActive]}>Grados</Text>
+          </Pressable>
+          <Pressable onPress={() => setTab('materias')} style={[styles.tabBtn, tab === 'materias' && styles.tabBtnActive]}>
+            <Ionicons name="book" size={18} color={tab === 'materias' ? Colors.textLight : Colors.textSecondary} />
+            <Text style={[styles.tabText, tab === 'materias' && styles.tabTextActive]}>Materias</Text>
+          </Pressable>
+        </View>
 
-        <ScrollView style={styles.list}>
-          {(tab === 'grados' ? grados : materias).map((item: any) => (
-            <Card key={item.id} style={styles.card} onPress={() => openEdit(item)}>
-              <Card.Content>
-                <View style={styles.cardHeader}>
-                  <Ionicons name={tab === 'grados' ? 'layers' : 'book'} size={24} color={Colors.primary} />
+        <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          {items.map((item: any) => (
+            <Pressable key={item.id} onPress={() => openEdit(item)}>
+              <Surface style={styles.card} elevation={0}>
+                <View style={styles.cardRow}>
+                  <View style={[styles.iconBadge, { backgroundColor: (tab === 'grados' ? nivelColor(item.nivel) : Colors.primary) + '15' }]}>
+                    <Ionicons name={tab === 'grados' ? 'layers' : 'book'} size={22} color={tab === 'grados' ? nivelColor(item.nivel) : Colors.primary} />
+                  </View>
                   <View style={styles.cardInfo}>
-                    <Text variant="titleMedium">{item.nombre}</Text>
+                    <Text style={styles.cardTitle}>{item.nombre}</Text>
                     {tab === 'grados' && (
-                      <Text variant="bodySmall" style={{ color: Colors.textSecondary }}>{item.nivel}</Text>
+                      <View style={[styles.badge, { backgroundColor: nivelColor(item.nivel) + '15' }]}>
+                        <Text style={[styles.badgeText, { color: nivelColor(item.nivel) }]}>{item.nivel}</Text>
+                      </View>
                     )}
                     {tab === 'materias' && (
-                      <Text variant="bodySmall" style={{ color: Colors.textSecondary }}>Código: {item.codigo}</Text>
+                      <Text style={styles.cardSubtitle}>Código: {item.codigo || '—'}</Text>
                     )}
                   </View>
-                  <Button icon="delete" compact onPress={() => handleDelete(item.id)} textColor={Colors.error}> </Button>
+                  <Pressable onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
+                    <Ionicons name="trash-outline" size={18} color={Colors.secondary} />
+                  </Pressable>
                 </View>
-              </Card.Content>
-            </Card>
+              </Surface>
+            </Pressable>
           ))}
         </ScrollView>
 
-        <FAB icon="plus" style={[styles.fab, { backgroundColor: Colors.primary }]} onPress={openCreate} />
+        <Pressable style={styles.fab} onPress={openCreate}>
+          <Ionicons name="add" size={28} color={Colors.textLight} />
+        </Pressable>
       </SafeAreaView>
 
       <Portal>
-        <Dialog visible={dialogOpen} onDismiss={() => setDialogOpen(false)}>
-          <Dialog.Title>{editing ? 'Editar' : 'Nuevo'} {tab === 'grados' ? 'Grado' : 'Materia'}</Dialog.Title>
+        <Dialog visible={dialogOpen} onDismiss={() => setDialogOpen(false)} style={styles.dialog}>
+          <Text style={styles.dialogTitle}>{editing ? 'Editar' : 'Nuevo'} {tab === 'grados' ? 'Grado' : 'Materia'}</Text>
           <Dialog.Content>
-            <TextInput label="Nombre" value={form.nombre} onChangeText={(v) => setForm({...form, nombre: v})} mode="outlined" style={styles.input} />
+            <TextInput label="Nombre" value={form.nombre} onChangeText={(v) => setForm({...form, nombre: v})} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
             {tab === 'grados' ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-                {niveles.map((n) => (
-                  <Chip key={n} selected={form.nivel === n} onPress={() => setForm({...form, nivel: n})} style={styles.chip}>
-                    {n}
-                  </Chip>
-                ))}
-              </ScrollView>
+              <View>
+                <Text style={styles.label}>Nivel</Text>
+                <View style={styles.nivelRow}>
+                  {niveles.map((n) => (
+                    <Pressable key={n} onPress={() => setForm({...form, nivel: n})} style={[styles.nivelChip, form.nivel === n && { backgroundColor: nivelColor(n), borderColor: nivelColor(n) }]}>
+                      <Text style={[styles.nivelText, form.nivel === n && { color: Colors.textLight }]}>{n}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
             ) : (
-              <TextInput label="Código" value={form.codigo} onChangeText={(v) => setForm({...form, codigo: v})} mode="outlined" style={styles.input} />
+              <TextInput label="Código" value={form.codigo} onChangeText={(v) => setForm({...form, codigo: v})} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
             )}
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onPress={handleSave}>{editing ? 'Guardar' : 'Crear'}</Button>
+            <Pressable onPress={() => setDialogOpen(false)} style={styles.dialogBtn}>
+              <Text style={styles.dialogBtnCancel}>Cancelar</Text>
+            </Pressable>
+            <Pressable onPress={handleSave} style={[styles.dialogBtn, styles.dialogBtnPrimary]}>
+              <Text style={styles.dialogBtnText}>{editing ? 'Guardar' : 'Crear'}</Text>
+            </Pressable>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -153,16 +173,34 @@ export default function GradesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1, padding: Spacing.lg },
-  title: { marginBottom: Spacing.md, fontWeight: 'bold' },
-  tabSelector: { marginBottom: Spacing.md },
+  container: { flex: 1, backgroundColor: Colors.background },
+  safeArea: { flex: 1, padding: Spacing.xl },
+  screenTitle: { fontSize: FontSizes.h1, fontFamily: Fonts.bold, color: Colors.text, marginBottom: Spacing.xl },
+  tabRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
+  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, backgroundColor: Colors.surface, ...Shadows.sm },
+  tabBtnActive: { backgroundColor: Colors.primary },
+  tabText: { fontSize: FontSizes.md, fontFamily: Fonts.medium, color: Colors.textSecondary },
+  tabTextActive: { color: Colors.textLight },
   list: { flex: 1 },
-  card: { marginBottom: Spacing.sm },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  cardInfo: { flex: 1 },
-  fab: { position: 'absolute', right: Spacing.lg, bottom: Spacing.lg },
-  input: { marginBottom: Spacing.sm },
-  chipRow: { marginVertical: Spacing.sm },
-  chip: { marginRight: Spacing.xs },
+  card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
+  cardRow: { flexDirection: 'row', alignItems: 'center' },
+  iconBadge: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  cardInfo: { flex: 1, marginLeft: Spacing.md },
+  cardTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, color: Colors.text },
+  cardSubtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: 2 },
+  badge: { alignSelf: 'flex-start', paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.sm, marginTop: Spacing.xs },
+  badgeText: { fontSize: FontSizes.xs, fontFamily: Fonts.medium },
+  deleteBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.secondary + '10', justifyContent: 'center', alignItems: 'center' },
+  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', ...Shadows.lg },
+  dialog: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg },
+  dialogTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: Colors.text, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl },
+  input: { marginBottom: Spacing.sm, backgroundColor: Colors.surface },
+  label: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.textSecondary, marginTop: Spacing.sm, marginBottom: Spacing.xs },
+  nivelRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
+  nivelChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: Colors.border },
+  nivelText: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.text },
+  dialogBtn: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  dialogBtnPrimary: { backgroundColor: Colors.primary, borderRadius: BorderRadius.md },
+  dialogBtnText: { color: Colors.textLight, fontFamily: Fonts.medium },
+  dialogBtnCancel: { color: Colors.textSecondary, fontFamily: Fonts.medium },
 })

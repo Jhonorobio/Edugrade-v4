@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
-import { TextInput, Button, Text, Surface, HelperText } from 'react-native-paper'
+import { TextInput, Button, Text, HelperText } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../../src/contexts/AuthContext'
-import { useTheme } from '../../src/contexts/ThemeContext'
-import { Colors, Spacing, FontSizes, BorderRadius } from '../../src/constants/theme'
+import { Colors, Spacing, BorderRadius, Fonts, FontSizes, Shadows } from '../../src/constants/theme'
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('')
@@ -13,7 +13,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const { usuario, login, loading } = useAuth()
-  const { theme } = useTheme()
   const router = useRouter()
 
   useEffect(() => {
@@ -31,70 +30,83 @@ export default function LoginScreen() {
     try {
       await login(username.trim(), password)
     } catch (e: any) {
-      setError(e.message || 'Error al iniciar sesión')
+      setError(e.message || 'Error al iniciar sesion')
     }
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Surface style={styles.card} elevation={2}>
-            <Text variant="headlineLarge" style={[styles.title, { color: Colors.primary }]}>
-              EduGrade
-            </Text>
-            <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Sistema de Gestión Escolar
-            </Text>
+          <View style={styles.content}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="school" size={48} color={Colors.primary} />
+            </View>
 
-            <TextInput
-              label="Usuario"
-              value={username}
-              onChangeText={setUsername}
-              mode="outlined"
-              autoCapitalize="none"
-              autoComplete="username"
-              style={styles.input}
-              left={<TextInput.Icon icon="account" />}
-            />
+            <Text style={styles.title}>EduGrade</Text>
+            <Text style={styles.subtitle}>Sistema de Gestion Escolar</Text>
 
-            <TextInput
-              label="Contraseña"
-              value={password}
-              onChangeText={setPassword}
-              mode="outlined"
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              style={styles.input}
-              left={<TextInput.Icon icon="lock" />}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? 'eye-off' : 'eye'}
-                  onPress={() => setShowPassword(!showPassword)}
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Usuario"
+                  value={username}
+                  onChangeText={setUsername}
+                  mode="flat"
+                  autoCapitalize="none"
+                  autoComplete="username"
+                  style={styles.input}
+                  underlineColor="transparent"
+                  theme={{ colors: { primary: Colors.primary, background: Colors.surface } }}
                 />
-              }
-            />
+              </View>
 
-            {error ? (
-              <HelperText type="error" visible={!!error} style={styles.error}>
-                {error}
-              </HelperText>
-            ) : null}
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Contrasena"
+                  value={password}
+                  onChangeText={setPassword}
+                  mode="flat"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  style={styles.input}
+                  underlineColor="transparent"
+                  theme={{ colors: { primary: Colors.primary, background: Colors.surface } }}
+                  right={
+                    <TextInput.Icon
+                      icon={showPassword ? 'eye-off' : 'eye'}
+                      onPress={() => setShowPassword(!showPassword)}
+                      color={Colors.textSecondary}
+                    />
+                  }
+                />
+              </View>
 
-            <Button
-              mode="contained"
-              onPress={handleLogin}
-              loading={loading}
-              disabled={loading}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-            >
-              Iniciar Sesión
-            </Button>
-          </Surface>
+              {error ? (
+                <HelperText type="error" visible={!!error} style={styles.error}>
+                  {error}
+                </HelperText>
+              ) : null}
+
+              <Button
+                mode="contained"
+                onPress={handleLogin}
+                loading={loading}
+                disabled={loading}
+                style={styles.button}
+                contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
+                buttonColor={Colors.primary}
+              >
+                Iniciar Sesion
+              </Button>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -104,6 +116,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -113,29 +126,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.xl,
   },
-  card: {
-    padding: Spacing.xxl,
-    borderRadius: BorderRadius.lg,
+  content: {
     alignItems: 'center',
   },
+  iconContainer: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xxl,
+    ...Shadows.md,
+  },
   title: {
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontFamily: Fonts.bold,
+    color: Colors.text,
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    marginBottom: Spacing.xxl,
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xxxl,
+  },
+  form: {
+    width: '100%',
+    maxWidth: 400,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    height: 56,
+    ...Shadows.sm,
+  },
+  inputIcon: {
+    marginRight: Spacing.sm,
   },
   input: {
-    width: '100%',
-    marginBottom: Spacing.md,
+    flex: 1,
+    backgroundColor: 'transparent',
+    fontSize: FontSizes.lg,
   },
   button: {
-    width: '100%',
-    marginTop: Spacing.md,
     borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
   },
   buttonContent: {
-    paddingVertical: Spacing.sm,
+    height: 56,
+    justifyContent: 'center',
+  },
+  buttonLabel: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.medium,
+    letterSpacing: 0.5,
   },
   error: {
     fontSize: FontSizes.sm,

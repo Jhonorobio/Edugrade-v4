@@ -1,154 +1,119 @@
 import { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, Alert } from 'react-native'
-import { Text, Card, Button, FAB, Dialog, Portal, TextInput, Searchbar, Chip } from 'react-native-paper'
+import { View, StyleSheet, ScrollView, Alert, Pressable } from 'react-native'
+import { Text, TextInput, Dialog, Portal, Searchbar, Surface } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
-import { useTheme } from '../../src/contexts/ThemeContext'
+import { Colors, Spacing, BorderRadius, Fonts, FontSizes, Shadows } from '../../src/constants/theme'
 import { useSchool } from '../../src/contexts/SchoolContext'
 import { getAlumnos, createAlumno, updateAlumno, deleteAlumno } from '../../src/services/students'
 import { getGrados } from '../../src/services/grades'
 import type { Alumno, Grado } from '../../src/types'
-import { Spacing, Colors, BorderRadius } from '../../src/constants/theme'
 
 export default function StudentsScreen() {
-  const { theme } = useTheme()
   const { colegioActivo } = useSchool()
   const [alumnos, setAlumnos] = useState<(Alumno & { grados?: { nombre: string } })[]>([])
   const [grados, setGrados] = useState<Grado[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [gradoFilter, setGradoFilter] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Alumno | null>(null)
   const [form, setForm] = useState({ nombre: '', apellido: '', grado_id: '' })
 
-  useFocusEffect(useCallback(() => {
-    if (colegioActivo) { loadData() }
-  }, [colegioActivo]))
+  useFocusEffect(useCallback(() => { if (colegioActivo) loadData() }, [colegioActivo]))
 
   async function loadData() {
     if (!colegioActivo) return
-    setLoading(true)
-    try {
-      const [alumnosData, gradosData] = await Promise.all([
-        getAlumnos(colegioActivo.id),
-        getGrados(colegioActivo.id),
-      ])
-      setAlumnos(alumnosData)
-      setGrados(gradosData)
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+    const [a, g] = await Promise.all([getAlumnos(colegioActivo.id), getGrados(colegioActivo.id)])
+    setAlumnos(a)
+    setGrados(g)
   }
 
-  function openCreate() {
-    setEditing(null)
-    setForm({ nombre: '', apellido: '', grado_id: grados[0]?.id || '' })
-    setDialogOpen(true)
-  }
-
-  function openEdit(alumno: Alumno) {
-    setEditing(alumno)
-    setForm({ nombre: alumno.nombre, apellido: alumno.apellido, grado_id: alumno.grado_id })
-    setDialogOpen(true)
-  }
+  function openCreate() { setEditing(null); setForm({ nombre: '', apellido: '', grado_id: grados[0]?.id || '' }); setDialogOpen(true) }
+  function openEdit(a: Alumno) { setEditing(a); setForm({ nombre: a.nombre, apellido: a.apellido, grado_id: a.grado_id }); setDialogOpen(true) }
 
   async function handleSave() {
-    if (!form.nombre || !form.apellido || !colegioActivo) {
-      Alert.alert('Error', 'Nombre, apellido y colegio son obligatorios')
-      return
-    }
-    try {
-      if (editing) {
-        await updateAlumno(editing.id, form)
-      } else {
-        await createAlumno({ ...form, colegio_id: colegioActivo.id, estado: 'activo' })
-      }
-      setDialogOpen(false)
-      loadData()
-    } catch (e: any) { Alert.alert('Error', e.message) }
+    if (!form.nombre || !form.apellido || !colegioActivo) { Alert.alert('Error', 'Campos obligatorios'); return }
+    editing ? await updateAlumno(editing.id, form) : await createAlumno({ ...form, colegio_id: colegioActivo.id, estado: 'activo' })
+    setDialogOpen(false); loadData()
   }
 
   async function handleDelete(id: string) {
-    Alert.alert('Confirmar', '¿Eliminar este alumno?', [
+    Alert.alert('Eliminar', 'Eliminar alumno?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try { await deleteAlumno(id); loadData() }
-        catch (e: any) { Alert.alert('Error', e.message) }
-      }},
+      { text: 'Eliminar', style: 'destructive', onPress: async () => { await deleteAlumno(id); loadData() } },
     ])
   }
 
   const filtered = alumnos.filter(a => {
-    const matchSearch = `${a.nombre} ${a.apellido}`.toLowerCase().includes(search.toLowerCase())
-    const matchGrado = !gradoFilter || a.grado_id === gradoFilter
-    return matchSearch && matchGrado
+    const match = `${a.nombre} ${a.apellido}`.toLowerCase().includes(search.toLowerCase())
+    const matchG = !gradoFilter || a.grado_id === gradoFilter
+    return match && matchG
   })
 
-  const gradoActual = (id: string) => grados.find(g => g.id === id)
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.onBackground }]}>
-          Alumnos
-        </Text>
+        <Text style={styles.screenTitle}>Alumnos</Text>
 
-        <Searchbar placeholder="Buscar alumno..." value={search} onChangeText={setSearch} style={styles.search} />
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={Colors.textSecondary} />
+          <Searchbar placeholder="Buscar alumno..." value={search} onChangeText={setSearch} style={styles.search} inputStyle={styles.searchInput} />
+        </View>
 
-        <ScrollView horizontal style={styles.filterRow} showsHorizontalScrollIndicator={false}>
-          <Chip selected={!gradoFilter} onPress={() => setGradoFilter('')} style={styles.filterChip}>Todos</Chip>
-          {grados.map((g) => (
-            <Chip key={g.id} selected={gradoFilter === g.id} onPress={() => setGradoFilter(gradoFilter === g.id ? '' : g.id)} style={styles.filterChip}>
-              {g.nombre}
-            </Chip>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+          <Pressable onPress={() => setGradoFilter('')} style={[styles.filterChip, !gradoFilter && styles.filterActive]}>
+            <Text style={[styles.filterText, !gradoFilter && styles.filterTextActive]}>Todos</Text>
+          </Pressable>
+          {grados.map(g => (
+            <Pressable key={g.id} onPress={() => setGradoFilter(gradoFilter === g.id ? '' : g.id)} style={[styles.filterChip, gradoFilter === g.id && styles.filterActive]}>
+              <Text style={[styles.filterText, gradoFilter === g.id && styles.filterTextActive]}>{g.nombre}</Text>
+            </Pressable>
           ))}
         </ScrollView>
 
-        <ScrollView style={styles.list}>
-          {filtered.map((alumno) => (
-            <Card key={alumno.id} style={styles.card} onPress={() => openEdit(alumno)}>
-              <Card.Content>
-                <View style={styles.cardHeader}>
-                  <Ionicons name="person" size={28} color={Colors.secondary} />
-                  <View style={styles.cardInfo}>
-                    <Text variant="titleMedium">{alumno.nombre} {alumno.apellido}</Text>
-                    <Text variant="bodySmall" style={{ color: Colors.textSecondary }}>
-                      {gradoActual(alumno.grado_id)?.nombre || 'Sin grado'} | {alumno.estado}
-                    </Text>
-                  </View>
-                  <Button icon="delete" compact onPress={() => handleDelete(alumno.id)} textColor={Colors.error}> </Button>
+        <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          {filtered.map((a) => (
+            <Surface key={a.id} style={styles.card} elevation={0}>
+              <View style={styles.cardRow}>
+                <View style={[styles.avatar, { backgroundColor: Colors.accent }]}>
+                  <Text style={styles.avatarText}>{a.nombre.charAt(0)}{a.apellido.charAt(0)}</Text>
                 </View>
-              </Card.Content>
-            </Card>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardTitle}>{a.nombre} {a.apellido}</Text>
+                  <Text style={styles.cardSubtitle}>{alumnos.find(x => x.id === a.id)?.grados?.nombre || 'Sin grado'}</Text>
+                </View>
+                <Pressable onPress={() => handleDelete(a.id)} style={styles.deleteBtn}>
+                  <Ionicons name="trash-outline" size={18} color={Colors.secondary} />
+                </Pressable>
+              </View>
+            </Surface>
           ))}
         </ScrollView>
 
-        <FAB icon="plus" style={[styles.fab, { backgroundColor: Colors.primary }]} onPress={openCreate} />
+        <Pressable style={styles.fab} onPress={openCreate}>
+          <Ionicons name="add" size={28} color={Colors.textLight} />
+        </Pressable>
       </SafeAreaView>
 
       <Portal>
-        <Dialog visible={dialogOpen} onDismiss={() => setDialogOpen(false)}>
-          <Dialog.Title>{editing ? 'Editar Alumno' : 'Nuevo Alumno'}</Dialog.Title>
+        <Dialog visible={dialogOpen} onDismiss={() => setDialogOpen(false)} style={styles.dialog}>
+          <Text style={styles.dialogTitle}>{editing ? 'Editar' : 'Nuevo'} Alumno</Text>
           <Dialog.Content>
-            <TextInput label="Nombre" value={form.nombre} onChangeText={(v) => setForm({...form, nombre: v})} mode="outlined" style={styles.input} />
-            <TextInput label="Apellido" value={form.apellido} onChangeText={(v) => setForm({...form, apellido: v})} mode="outlined" style={styles.input} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gradePicker}>
-              {grados.map((g) => (
-                <Chip
-                  key={g.id}
-                  selected={form.grado_id === g.id}
-                  onPress={() => setForm({...form, grado_id: g.id})}
-                  style={styles.gradeChip}
-                >
-                  {g.nombre}
-                </Chip>
+            <TextInput label="Nombre" value={form.nombre} onChangeText={(v) => setForm({...form, nombre: v})} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+            <TextInput label="Apellido" value={form.apellido} onChangeText={(v) => setForm({...form, apellido: v})} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+            <Text style={styles.label}>Grado</Text>
+            <View style={styles.roleRow}>
+              {grados.map(g => (
+                <Pressable key={g.id} onPress={() => setForm({...form, grado_id: g.id})} style={[styles.roleChip, form.grado_id === g.id && styles.filterActive]}>
+                  <Text style={[styles.filterText, form.grado_id === g.id && styles.filterTextActive]}>{g.nombre}</Text>
+                </Pressable>
               ))}
-            </ScrollView>
+            </View>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onPress={handleSave}>{editing ? 'Guardar' : 'Crear'}</Button>
+            <Pressable onPress={() => setDialogOpen(false)} style={styles.dialogBtn}><Text style={styles.dialogBtnCancel}>Cancelar</Text></Pressable>
+            <Pressable onPress={handleSave} style={[styles.dialogBtn, styles.dialogBtnPrimary]}><Text style={styles.dialogBtnText}>{editing ? 'Guardar' : 'Crear'}</Text></Pressable>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -157,18 +122,35 @@ export default function StudentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1, padding: Spacing.lg },
-  title: { marginBottom: Spacing.md, fontWeight: 'bold' },
-  search: { marginBottom: Spacing.sm },
+  container: { flex: 1, backgroundColor: Colors.background },
+  safeArea: { flex: 1, padding: Spacing.xl },
+  screenTitle: { fontSize: FontSizes.h1, fontFamily: Fonts.bold, color: Colors.text, marginBottom: Spacing.xl },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.sm },
+  search: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.md },
+  searchInput: { fontFamily: Fonts.regular },
   filterRow: { marginBottom: Spacing.md },
-  filterChip: { marginRight: Spacing.sm },
+  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: Colors.border, marginRight: Spacing.sm, backgroundColor: Colors.surface },
+  filterActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterText: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.text },
+  filterTextActive: { color: Colors.textLight },
   list: { flex: 1 },
-  card: { marginBottom: Spacing.sm },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  cardInfo: { flex: 1 },
-  fab: { position: 'absolute', right: Spacing.lg, bottom: Spacing.lg },
-  input: { marginBottom: Spacing.sm },
-  gradePicker: { marginVertical: Spacing.sm },
-  gradeChip: { marginRight: Spacing.xs },
+  card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
+  cardRow: { flexDirection: 'row', alignItems: 'center' },
+  avatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: Colors.textLight },
+  cardInfo: { flex: 1, marginLeft: Spacing.md },
+  cardTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, color: Colors.text },
+  cardSubtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: 2 },
+  deleteBtn: { padding: Spacing.sm },
+  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', ...Shadows.lg },
+  dialog: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg },
+  dialogTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: Colors.text, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl },
+  input: { marginBottom: Spacing.sm, backgroundColor: Colors.surface },
+  label: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.textSecondary, marginTop: Spacing.sm, marginBottom: Spacing.xs },
+  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.sm },
+  roleChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
+  dialogBtn: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  dialogBtnPrimary: { backgroundColor: Colors.primary, borderRadius: BorderRadius.md },
+  dialogBtnText: { color: Colors.textLight, fontFamily: Fonts.medium },
+  dialogBtnCancel: { color: Colors.textSecondary, fontFamily: Fonts.medium },
 })

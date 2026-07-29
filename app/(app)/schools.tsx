@@ -1,16 +1,14 @@
 import { useState, useCallback } from 'react'
-import { View, StyleSheet, ScrollView, Alert } from 'react-native'
-import { Text, Card, Button, FAB, Dialog, Portal, TextInput, Searchbar, Chip } from 'react-native-paper'
+import { View, StyleSheet, ScrollView, Alert, Pressable } from 'react-native'
+import { Text, TextInput, Dialog, Portal, Searchbar, Surface } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
-import { useTheme } from '../../src/contexts/ThemeContext'
+import { Colors, Spacing, BorderRadius, Fonts, FontSizes, Shadows } from '../../src/constants/theme'
 import { getColegios, createColegio, updateColegio, deleteColegio } from '../../src/services/schools'
 import type { Colegio } from '../../src/types'
-import { Spacing, Colors, BorderRadius } from '../../src/constants/theme'
 
 export default function SchoolsScreen() {
-  const { theme } = useTheme()
   const [colegios, setColegios] = useState<Colegio[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -22,10 +20,8 @@ export default function SchoolsScreen() {
 
   async function loadColegios() {
     setLoading(true)
-    try {
-      const data = await getColegios()
-      setColegios(data)
-    } catch (e) { console.error(e) }
+    try { setColegios(await getColegios()) }
+    catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
 
@@ -35,107 +31,88 @@ export default function SchoolsScreen() {
     setDialogOpen(true)
   }
 
-  function openEdit(colegio: Colegio) {
-    setEditing(colegio)
-    setForm({
-      nombre: colegio.nombre,
-      codigo: colegio.codigo,
-      direccion: colegio.direccion || '',
-      telefono: colegio.telefono || '',
-      email: colegio.email || '',
-    })
+  function openEdit(c: Colegio) {
+    setEditing(c)
+    setForm({ nombre: c.nombre, codigo: c.codigo, direccion: c.direccion || '', telefono: c.telefono || '', email: c.email || '' })
     setDialogOpen(true)
   }
 
   async function handleSave() {
-    if (!form.nombre || !form.codigo) {
-      Alert.alert('Error', 'Nombre y código son obligatorios')
-      return
-    }
+    if (!form.nombre || !form.codigo) { Alert.alert('Error', 'Nombre y codigo son obligatorios'); return }
     try {
-      if (editing) {
-        await updateColegio(editing.id, form)
-      } else {
-        await createColegio(form)
-      }
+      editing ? await updateColegio(editing.id, form) : await createColegio(form)
       setDialogOpen(false)
       loadColegios()
     } catch (e: any) { Alert.alert('Error', e.message) }
   }
 
   async function handleDelete(id: string) {
-    Alert.alert('Confirmar', '¿Eliminar este colegio?', [
+    Alert.alert('Eliminar', 'Eliminar este colegio?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try { await deleteColegio(id); loadColegios() }
-        catch (e: any) { Alert.alert('Error', e.message) }
+        try { await deleteColegio(id); loadColegios() } catch (e: any) { Alert.alert('Error', e.message) }
       }},
     ])
   }
 
   const filtered = colegios.filter(c =>
-    c.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    c.codigo.toLowerCase().includes(search.toLowerCase())
+    c.nombre.toLowerCase().includes(search.toLowerCase()) || c.codigo.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.onBackground }]}>
-          Colegios
-        </Text>
+        <Text style={styles.screenTitle}>Colegios</Text>
 
-        <Searchbar
-          placeholder="Buscar colegio..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.search}
-        />
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={Colors.textSecondary} />
+          <Searchbar placeholder="Buscar colegio..." value={search} onChangeText={setSearch} style={styles.search} inputStyle={styles.searchInput} />
+        </View>
 
-        <ScrollView style={styles.list}>
-          {filtered.map((colegio) => (
-            <Card key={colegio.id} style={styles.card} onPress={() => openEdit(colegio)}>
-              <Card.Content style={styles.cardContent}>
-                <View style={styles.cardHeader}>
-                  <Ionicons name="business" size={24} color={Colors.primary} />
-                  <View style={styles.cardInfo}>
-                    <Text variant="titleMedium">{colegio.nombre}</Text>
-                    <Text variant="bodySmall" style={{ color: Colors.textSecondary }}>
-                      Código: {colegio.codigo}
-                    </Text>
+        <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+          {filtered.map((c) => (
+            <Pressable key={c.id} onPress={() => openEdit(c)}>
+              <Surface style={styles.card} elevation={0}>
+                <View style={styles.cardRow}>
+                  <View style={[styles.cardIcon, { backgroundColor: Colors.primary + '15' }]}>
+                    <Ionicons name="business" size={22} color={Colors.primary} />
                   </View>
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardTitle}>{c.nombre}</Text>
+                    <Text style={styles.cardSubtitle}>Codigo: {c.codigo}</Text>
+                    {c.direccion && <Text style={styles.cardDetail}>{c.direccion}</Text>}
+                  </View>
+                  <Pressable onPress={() => handleDelete(c.id)} style={styles.deleteBtn}>
+                    <Ionicons name="trash-outline" size={18} color={Colors.secondary} />
+                  </Pressable>
                 </View>
-                {colegio.direccion && (
-                  <Text variant="bodySmall" style={{ color: Colors.textSecondary, marginTop: Spacing.xs }}>
-                    {colegio.direccion}
-                  </Text>
-                )}
-              </Card.Content>
-              <Card.Actions>
-                <Button icon="delete" onPress={() => handleDelete(colegio.id)} textColor={Colors.error}>
-                  Eliminar
-                </Button>
-              </Card.Actions>
-            </Card>
+              </Surface>
+            </Pressable>
           ))}
         </ScrollView>
 
-        <FAB icon="plus" style={[styles.fab, { backgroundColor: Colors.primary }]} onPress={openCreate} />
+        <Pressable style={styles.fab} onPress={openCreate}>
+          <Ionicons name="add" size={28} color={Colors.textLight} />
+        </Pressable>
       </SafeAreaView>
 
       <Portal>
-        <Dialog visible={dialogOpen} onDismiss={() => setDialogOpen(false)}>
-          <Dialog.Title>{editing ? 'Editar Colegio' : 'Nuevo Colegio'}</Dialog.Title>
+        <Dialog visible={dialogOpen} onDismiss={() => setDialogOpen(false)} style={styles.dialog}>
+          <Text style={styles.dialogTitle}>{editing ? 'Editar' : 'Nuevo'} Colegio</Text>
           <Dialog.Content>
-            <TextInput label="Nombre" value={form.nombre} onChangeText={(v) => setForm({...form, nombre: v})} mode="outlined" style={styles.input} />
-            <TextInput label="Código" value={form.codigo} onChangeText={(v) => setForm({...form, codigo: v})} mode="outlined" style={styles.input} />
-            <TextInput label="Dirección" value={form.direccion} onChangeText={(v) => setForm({...form, direccion: v})} mode="outlined" style={styles.input} />
-            <TextInput label="Teléfono" value={form.telefono} onChangeText={(v) => setForm({...form, telefono: v})} mode="outlined" style={styles.input} keyboardType="phone-pad" />
-            <TextInput label="Email" value={form.email} onChangeText={(v) => setForm({...form, email: v})} mode="outlined" style={styles.input} keyboardType="email-address" />
+            <TextInput label="Nombre" value={form.nombre} onChangeText={(v) => setForm({...form, nombre: v})} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+            <TextInput label="Codigo" value={form.codigo} onChangeText={(v) => setForm({...form, codigo: v})} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+            <TextInput label="Direccion" value={form.direccion} onChangeText={(v) => setForm({...form, direccion: v})} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+            <TextInput label="Telefono" value={form.telefono} onChangeText={(v) => setForm({...form, telefono: v})} mode="outlined" style={styles.input} keyboardType="phone-pad" outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+            <TextInput label="Email" value={form.email} onChangeText={(v) => setForm({...form, email: v})} mode="outlined" style={styles.input} keyboardType="email-address" outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onPress={handleSave}>{editing ? 'Guardar' : 'Crear'}</Button>
+            <Pressable onPress={() => setDialogOpen(false)} style={styles.dialogBtn}>
+              <Text style={styles.dialogBtnCancel}>Cancelar</Text>
+            </Pressable>
+            <Pressable onPress={handleSave} style={[styles.dialogBtn, styles.dialogBtnPrimary]}>
+              <Text style={styles.dialogBtnText}>{editing ? 'Guardar' : 'Crear'}</Text>
+            </Pressable>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -144,15 +121,28 @@ export default function SchoolsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1, padding: Spacing.lg },
-  title: { marginBottom: Spacing.md, fontWeight: 'bold' },
-  search: { marginBottom: Spacing.md },
+  container: { flex: 1, backgroundColor: Colors.background },
+  safeArea: { flex: 1, padding: Spacing.xl },
+  screenTitle: { fontSize: FontSizes.h1, fontFamily: Fonts.bold, color: Colors.text, marginBottom: Spacing.xl },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg, gap: Spacing.sm },
+  search: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.md },
+  searchInput: { fontFamily: Fonts.regular },
   list: { flex: 1 },
-  card: { marginBottom: Spacing.sm },
-  cardContent: {},
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  cardInfo: { flex: 1 },
-  fab: { position: 'absolute', right: Spacing.lg, bottom: Spacing.lg },
-  input: { marginBottom: Spacing.sm },
+  card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadows.sm },
+  cardRow: { flexDirection: 'row', alignItems: 'center' },
+  cardIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  cardInfo: { flex: 1, marginLeft: Spacing.md },
+  cardTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, color: Colors.text },
+  cardSubtitle: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: 2 },
+  cardDetail: { fontSize: FontSizes.xs, color: Colors.textSecondary, marginTop: 2 },
+  deleteBtn: { padding: Spacing.sm },
+  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', ...Shadows.lg },
+  dialog: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg },
+  dialogTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: Colors.text, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl },
+  input: { marginBottom: Spacing.sm, backgroundColor: Colors.surface },
+  dialogActions: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl },
+  dialogBtn: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  dialogBtnPrimary: { backgroundColor: Colors.primary, borderRadius: BorderRadius.md },
+  dialogBtnText: { color: Colors.textLight, fontFamily: Fonts.medium },
+  dialogBtnCancel: { color: Colors.textSecondary, fontFamily: Fonts.medium },
 })

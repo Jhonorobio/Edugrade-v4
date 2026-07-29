@@ -1,21 +1,19 @@
 import { useState, useCallback, useRef } from 'react'
-import { View, StyleSheet, ScrollView, Alert, TextInput as RNTextInput } from 'react-native'
-import { Text, Card, Button, Dialog, Portal, TextInput, Searchbar, Chip, SegmentedButtons, Menu, Divider, Surface } from 'react-native-paper'
+import { View, StyleSheet, ScrollView, Alert, TextInput as RNTextInput, Pressable } from 'react-native'
+import { Text, TextInput, Dialog, Portal, Surface } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
-import { useTheme } from '../../src/contexts/ThemeContext'
+import { Colors, Spacing, BorderRadius, Fonts, FontSizes, Shadows } from '../../src/constants/theme'
 import { useSchool } from '../../src/contexts/SchoolContext'
 import { getAlumnos } from '../../src/services/students'
 import { getGrados, getMaterias } from '../../src/services/grades'
 import { getActividades, createActividad, updateActividad, deleteActividad, getCalificaciones as getCalifs, upsertCalificaciones } from '../../src/services/grading'
 import { calcularPromedioPeriodo, formatNota } from '../../src/utils/grading'
 import type { Alumno, Grado, Materia, Actividad, CategoryType } from '../../src/types'
-import { Spacing, Colors, BorderRadius } from '../../src/constants/theme'
 import { Config } from '../../src/constants/config'
 
 export default function GradingScreen() {
-  const { theme } = useTheme()
   const { colegioActivo } = useSchool()
 
   const [grados, setGrados] = useState<Grado[]>([])
@@ -75,17 +73,17 @@ export default function GradingScreen() {
     } catch (e) { console.error(e) }
   }
 
-  async function handleGradoChange(id: string) {
+  function handleGradoChange(id: string) {
     setGradoId(id)
     if (materiaId) setTimeout(loadActividades, 0)
   }
 
-  async function handleMateriaChange(id: string) {
+  function handleMateriaChange(id: string) {
     setMateriaId(id)
     if (gradoId) setTimeout(loadActividades, 0)
   }
 
-  async function handlePeriodoChange(p: number) {
+  function handlePeriodoChange(p: number) {
     setPeriodo(p)
     if (materiaId && gradoId) setTimeout(loadActividades, 100)
   }
@@ -162,70 +160,71 @@ export default function GradingScreen() {
     return found ? found.label : cat
   }
 
+  const catColor = (cat: string) => {
+    if (cat === 'apuntes_tareas') return Colors.primary
+    if (cat === 'pruebas_examen') return Colors.secondary
+    if (cat === 'proyectos') return Colors.accent
+    return Colors.success
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <Text variant="headlineSmall" style={[styles.title, { color: theme.colors.onBackground }]}>
-          Planilla de Calificaciones
-        </Text>
+        <Text style={styles.screenTitle}>Planilla de Calificaciones</Text>
 
         <View style={styles.filters}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
             {grados.map(g => (
-              <Chip key={g.id} selected={gradoId === g.id} onPress={() => handleGradoChange(g.id)} style={styles.filterChip}>
-                {g.nombre}
-              </Chip>
+              <Pressable key={g.id} onPress={() => handleGradoChange(g.id)} style={[styles.filterChip, gradoId === g.id && styles.filterChipActive]}>
+                <Text style={[styles.filterChipText, gradoId === g.id && styles.filterChipTextActive]}>{g.nombre}</Text>
+              </Pressable>
             ))}
           </ScrollView>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
             {materias.map(m => (
-              <Chip key={m.id} selected={materiaId === m.id} onPress={() => handleMateriaChange(m.id)} style={styles.filterChip}>
-                {m.nombre}
-              </Chip>
+              <Pressable key={m.id} onPress={() => handleMateriaChange(m.id)} style={[styles.filterChip, materiaId === m.id && styles.filterChipActive]}>
+                <Text style={[styles.filterChipText, materiaId === m.id && styles.filterChipTextActive]}>{m.nombre}</Text>
+              </Pressable>
             ))}
           </ScrollView>
 
-          <SegmentedButtons
-            value={periodo.toString()}
-            onValueChange={(v) => handlePeriodoChange(parseInt(v))}
-            buttons={[1, 2, 3].map(p => ({ value: p.toString(), label: `P${p}` }))}
-            style={styles.periodSelector}
-          />
+          <View style={styles.periodRow}>
+            {[1, 2, 3].map(p => (
+              <Pressable key={p} onPress={() => handlePeriodoChange(p)} style={[styles.periodBtn, periodo === p && styles.periodBtnActive]}>
+                <Text style={[styles.periodText, periodo === p && styles.periodTextActive]}>P{p}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         {(materiaId && gradoId) ? (
           <ScrollView style={styles.gradebook}>
-            <Surface style={styles.table}>
+            <Surface style={styles.table} elevation={0}>
               <ScrollView horizontal>
                 <View>
-                  <View style={[styles.tableHeader, { backgroundColor: theme.colors.primaryContainer }]}>
-                    <Text style={[styles.headerCell, styles.nameCol, { color: theme.colors.onPrimaryContainer }]}>Estudiante</Text>
-                    {actividades.map((act, i) => (
-                      <View key={act.id} style={styles.headerCellWithActions}>
-                        <Text
-                          style={[styles.headerCell, styles.gradeCol, { color: theme.colors.onPrimaryContainer }]}
-                          numberOfLines={2}
-                        >
-                          {act.nombre}
-                        </Text>
-                        <Text style={[styles.catLabel, { color: theme.colors.onPrimaryContainer }]}>
-                          {categoriaLabel(act.categoria)}
-                        </Text>
+                  <View style={styles.tableHeader}>
+                    <Text style={[styles.headerCell, styles.nameCol]}>Estudiante</Text>
+                    {actividades.map((act) => (
+                      <View key={act.id} style={styles.headerCellWrap}>
+                        <Text style={[styles.headerCell, styles.gradeCol]} numberOfLines={2}>{act.nombre}</Text>
+                        <View style={[styles.catBadge, { backgroundColor: catColor(act.categoria) + '15' }]}>
+                          <Text style={[styles.catBadgeText, { color: catColor(act.categoria) }]}>{categoriaLabel(act.categoria)}</Text>
+                        </View>
                       </View>
                     ))}
-                    <Text style={[styles.headerCell, styles.avgCol, { color: theme.colors.onPrimaryContainer }]}>Prom.</Text>
+                    <Text style={[styles.headerCell, styles.avgCol]}>Prom.</Text>
                     <View style={styles.headerActions}>
-                      <Button compact icon="plus" onPress={() => openActDialog()} style={styles.addActBtn}>
-                        Act.
-                      </Button>
+                      <Pressable onPress={() => openActDialog()} style={styles.addActBtn}>
+                        <Ionicons name="add" size={16} color={Colors.primary} />
+                      </Pressable>
                     </View>
                   </View>
 
                   {alumnos.map((alumno) => {
                     const prom = getPromedio(alumno.id)
                     return (
-                      <View key={alumno.id} style={[styles.tableRow, { borderBottomColor: theme.colors.outlineVariant }]}>
+                      <View key={alumno.id} style={styles.tableRow}>
                         <Text style={[styles.rowCell, styles.nameCol]} numberOfLines={1}>
                           {alumno.nombre} {alumno.apellido}
                         </Text>
@@ -235,7 +234,7 @@ export default function GradingScreen() {
                             <RNTextInput
                               key={cellKey}
                               ref={ref => { inputRefs.current[cellKey] = ref }}
-                              style={[styles.gradeInput, { borderColor: theme.colors.outline, color: theme.colors.onSurface }]}
+                              style={styles.gradeInput}
                               value={calificaciones[act.id]?.[alumno.id]?.toString() || ''}
                               onChangeText={(v) => handleNotaChange(alumno.id, act.id, v)}
                               keyboardType="decimal-pad"
@@ -243,7 +242,7 @@ export default function GradingScreen() {
                             />
                           )
                         })}
-                        <Text style={[styles.rowCell, styles.avgCol, { fontWeight: 'bold' }]}>
+                        <Text style={[styles.rowCell, styles.avgCol, styles.avgText]}>
                           {formatNota(prom)}
                         </Text>
                       </View>
@@ -256,36 +255,37 @@ export default function GradingScreen() {
         ) : (
           <View style={styles.empty}>
             <Ionicons name="book-outline" size={64} color={Colors.disabled} />
-            <Text variant="bodyLarge" style={{ color: Colors.textSecondary, marginTop: Spacing.md }}>
-              Seleccione un grado y materia para comenzar
-            </Text>
+            <Text style={styles.emptyText}>Seleccione un grado y materia</Text>
           </View>
         )}
       </SafeAreaView>
 
       <Portal>
-        <Dialog visible={actDialogOpen} onDismiss={() => setActDialogOpen(false)}>
-          <Dialog.Title>{editingAct ? 'Editar Actividad' : 'Nueva Actividad'}</Dialog.Title>
+        <Dialog visible={actDialogOpen} onDismiss={() => setActDialogOpen(false)} style={styles.dialog}>
+          <Text style={styles.dialogTitle}>{editingAct ? 'Editar' : 'Nueva'} Actividad</Text>
           <Dialog.Content>
-            <TextInput label="Nombre" value={newActNombre} onChangeText={setNewActNombre} mode="outlined" style={styles.input} />
-            <Text variant="labelMedium" style={styles.catTitle}>Categoría</Text>
+            <TextInput label="Nombre" value={newActNombre} onChangeText={setNewActNombre} mode="outlined" style={styles.input} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+            <Text style={styles.label}>Categoría</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {Config.gradeCategories.map(cat => (
-                <Chip
-                  key={cat.id}
-                  selected={newActCategoria === cat.id}
-                  onPress={() => setNewActCategoria(cat.id as CategoryType)}
-                  style={styles.catChip}
-                >
-                  {cat.label}
-                </Chip>
+                <Pressable key={cat.id} onPress={() => setNewActCategoria(cat.id as CategoryType)} style={[styles.catChip, newActCategoria === cat.id && { backgroundColor: catColor(cat.id), borderColor: catColor(cat.id) }]}>
+                  <Text style={[styles.catChipText, newActCategoria === cat.id && { color: Colors.textLight }]}>{cat.label}</Text>
+                </Pressable>
               ))}
             </ScrollView>
           </Dialog.Content>
           <Dialog.Actions>
-            {editingAct && <Button onPress={() => handleDeleteActividad(editingAct.id)} textColor={Colors.error}>Eliminar</Button>}
-            <Button onPress={() => setActDialogOpen(false)}>Cancelar</Button>
-            <Button onPress={handleSaveActividad}>{editingAct ? 'Guardar' : 'Crear'}</Button>
+            {editingAct && (
+              <Pressable onPress={() => handleDeleteActividad(editingAct.id)} style={styles.dialogBtn}>
+                <Text style={{ color: Colors.secondary, fontFamily: Fonts.medium }}>Eliminar</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setActDialogOpen(false)} style={styles.dialogBtn}>
+              <Text style={styles.dialogBtnCancel}>Cancelar</Text>
+            </Pressable>
+            <Pressable onPress={handleSaveActividad} style={[styles.dialogBtn, styles.dialogBtnPrimary]}>
+              <Text style={styles.dialogBtnText}>{editingAct ? 'Guardar' : 'Crear'}</Text>
+            </Pressable>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -294,63 +294,46 @@ export default function GradingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1, padding: Spacing.lg },
-  title: { marginBottom: Spacing.md, fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: Colors.background },
+  safeArea: { flex: 1, padding: Spacing.xl },
+  screenTitle: { fontSize: FontSizes.h1, fontFamily: Fonts.bold, color: Colors.text, marginBottom: Spacing.lg },
   filters: { marginBottom: Spacing.md },
   filterRow: { marginBottom: Spacing.sm },
-  filterChip: { marginRight: Spacing.sm },
-  periodSelector: { marginBottom: Spacing.sm },
+  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.round, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, marginRight: Spacing.sm, ...Shadows.sm },
+  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterChipText: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.text },
+  filterChipTextActive: { color: Colors.textLight },
+  periodRow: { flexDirection: 'row', gap: Spacing.sm },
+  periodBtn: { flex: 1, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', ...Shadows.sm },
+  periodBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  periodText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: Colors.textSecondary },
+  periodTextActive: { color: Colors.textLight },
   gradebook: { flex: 1 },
-  table: { borderRadius: BorderRadius.md, overflow: 'hidden' },
-  tableHeader: {
-    flexDirection: 'row',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
-    alignItems: 'center',
-  },
-  headerCell: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  headerCellWithActions: {
-    width: 100,
-    alignItems: 'center',
-    paddingHorizontal: 2,
-  },
-  catLabel: { fontSize: 9, marginTop: 2 },
+  table: { borderRadius: BorderRadius.lg, overflow: 'hidden', ...Shadows.sm },
+  tableHeader: { flexDirection: 'row', paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, backgroundColor: Colors.primary + '08', alignItems: 'center' },
+  headerCell: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: Colors.text, textAlign: 'center' },
+  headerCellWrap: { width: 100, alignItems: 'center', paddingHorizontal: 2 },
+  catBadge: { paddingHorizontal: Spacing.xs, paddingVertical: 1, borderRadius: BorderRadius.sm, marginTop: 2 },
+  catBadgeText: { fontSize: 8, fontFamily: Fonts.medium },
   nameCol: { width: 150, paddingHorizontal: Spacing.sm },
   gradeCol: { width: 100 },
   avgCol: { width: 60, textAlign: 'center' },
   headerActions: { paddingLeft: Spacing.xs },
-  addActBtn: { height: 32 },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.xs,
-    borderBottomWidth: 1,
-  },
-  rowCell: {
-    fontSize: 13,
-    paddingVertical: Spacing.xs,
-  },
-  gradeInput: {
-    width: 80,
-    height: 36,
-    borderWidth: 1,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.sm,
-    fontSize: 13,
-    textAlign: 'center',
-    marginHorizontal: 2,
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  input: { marginBottom: Spacing.sm },
-  catTitle: { marginBottom: Spacing.sm, marginTop: Spacing.sm },
-  catChip: { marginRight: Spacing.sm },
+  addActBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.xs, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  rowCell: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.text, paddingVertical: Spacing.xs },
+  gradeInput: { width: 80, height: 36, borderWidth: 1, borderRadius: BorderRadius.sm, borderColor: Colors.border, paddingHorizontal: Spacing.sm, fontSize: FontSizes.sm, textAlign: 'center', marginHorizontal: 2, backgroundColor: Colors.surface, fontFamily: Fonts.regular },
+  avgText: { fontFamily: Fonts.bold, color: Colors.primary },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: FontSizes.md, fontFamily: Fonts.medium, color: Colors.textSecondary, marginTop: Spacing.md },
+  dialog: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg },
+  dialogTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: Colors.text, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl },
+  input: { marginBottom: Spacing.sm, backgroundColor: Colors.surface },
+  label: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.textSecondary, marginTop: Spacing.sm, marginBottom: Spacing.xs },
+  catChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.round, backgroundColor: Colors.surfaceVariant, borderWidth: 1, borderColor: Colors.border, marginRight: Spacing.sm },
+  catChipText: { fontSize: FontSizes.sm, fontFamily: Fonts.medium, color: Colors.text },
+  dialogBtn: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  dialogBtnPrimary: { backgroundColor: Colors.primary, borderRadius: BorderRadius.md },
+  dialogBtnText: { color: Colors.textLight, fontFamily: Fonts.medium },
+  dialogBtnCancel: { color: Colors.textSecondary, fontFamily: Fonts.medium },
 })

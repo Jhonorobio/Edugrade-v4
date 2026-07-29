@@ -1,20 +1,28 @@
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { PaperProvider } from 'react-native-paper'
+import { useFonts, Lexend_400Regular, Lexend_500Medium, Lexend_600SemiBold, Lexend_700Bold } from '@expo-google-fonts/lexend'
 import { AuthProvider } from '../src/contexts/AuthContext'
 import { SchoolProvider } from '../src/contexts/SchoolContext'
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext'
 import { View, ActivityIndicator, StyleSheet } from 'react-native'
 import { useAuth } from '../src/contexts/AuthContext'
+import { Colors } from '../src/constants/theme'
 
 function RootLayoutInner() {
   const { initialized } = useAuth()
   const { theme, isDark } = useTheme()
+  const [fontsLoaded] = useFonts({
+    Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
+  })
 
-  if (!initialized) {
+  if (!initialized || !fontsLoaded) {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <View style={[styles.loading, { backgroundColor: Colors.background }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     )
   }
